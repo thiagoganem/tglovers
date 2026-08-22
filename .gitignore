@@ -1,0 +1,16 @@
+# Node / Next
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Ambiente
+.env
+.env.local
+
+# Sistema
+.DS_Store
+
+# Recursos do pdf.js, copiados do node_modules a cada build
+public/pdfjs/

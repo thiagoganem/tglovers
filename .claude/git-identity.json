@@ -1,0 +1,10 @@
+{
+  "description": "Identidade Git deste projeto — quem commita e para onde vai o push. Aplique com /git-identity.",
+  "commit": {
+    "name": "thiagoganem",
+    "email": "282404121+thiagoganem@users.noreply.github.com"
+  },
+  "push": {
+    "sshHost": "github-thiagoganem"
+  }
+}

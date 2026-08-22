@@ -1,0 +1,345 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FileIcon, FileUploadIcon, TrashIcon } from "./icons";
+import { formatBytes } from "@/lib/format";
+import { gerarMiniatura, type Miniatura } from "@/lib/miniatura";
+
+/** Um arquivo escolhido, com identidade própria. */
+export type Escolhido = { id: string; file: File };
+
+export function novoEscolhido(file: File): Escolhido {
+  const id =
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return { id, file };
+}
+
+type DropzoneProps = {
+  /** Extensões aceitas, no formato `.pdf`. */
+  accept: string[];
+  /** Rótulos exibidos ao usuário (PDF, JPG, …). */
+  labels: string[];
+  /** Limite para a **soma** dos arquivos. */
+  maxBytes: number;
+  /** Quantos arquivos cabem em um envio. */
+  maxFiles: number;
+  /** Alvo de tamanho da saída, exibido na nota inferior. */
+  targetBytes: number;
+  itens: Escolhido[];
+  disabled?: boolean;
+  onItens: (itens: Escolhido[]) => void;
+  onReject: (message: string) => void;
+};
+
+/**
+ * Área de arrastar e soltar, com miniatura de cada arquivo.
+ *
+ * Aceita vários de uma vez e mantém a ordem visível — ela é a ordem das
+ * páginas no PDF final, então precisa ser tanto vista quanto mudada aqui.
+ *
+ * A validação daqui é só de conveniência (resposta imediata); a real, inclusive
+ * por assinatura binária do conteúdo, acontece no servidor.
+ */
+export function Dropzone({
+  accept,
+  labels,
+  maxBytes,
+  maxFiles,
+  targetBytes,
+  itens,
+  disabled = false,
+  onItens,
+  onReject,
+}: DropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const miniaturas = useMiniaturas(itens);
+
+  const validar = useCallback(
+    (candidato: File, jaEscolhidos: Escolhido[]): string | null => {
+      const extensao = candidato.name.slice(candidato.name.lastIndexOf(".")).toLowerCase();
+      if (!accept.includes(extensao)) {
+        return `${candidato.name}: formato não suportado. Envie ${labels.join(", ")}.`;
+      }
+      if (candidato.size === 0) return `${candidato.name}: o arquivo está vazio.`;
+
+      const soma = jaEscolhidos.reduce((total, item) => total + item.file.size, 0);
+      if (soma + candidato.size > maxBytes) {
+        return `Os arquivos somam mais que o limite de ${formatBytes(maxBytes)}.`;
+      }
+      return null;
+    },
+    [accept, labels, maxBytes],
+  );
+
+  const receber = useCallback(
+    (lista: FileList | null) => {
+      const novos = Array.from(lista ?? []);
+      if (novos.length === 0) return;
+
+      const aceitos = [...itens];
+      let recusa: string | null = null;
+
+      for (const candidato of novos) {
+        if (aceitos.length >= maxFiles) {
+          recusa = `Máximo de ${maxFiles} arquivos por envio.`;
+          break;
+        }
+        const erro = validar(candidato, aceitos);
+        if (erro) {
+          recusa = erro;
+          continue;
+        }
+        aceitos.push(novoEscolhido(candidato));
+      }
+
+      if (aceitos.length !== itens.length) onItens(aceitos);
+      if (recusa) onReject(recusa);
+    },
+    [itens, maxFiles, onItens, onReject, validar],
+  );
+
+  const abrir = () => !disabled && inputRef.current?.click();
+
+  const remover = (id: string) => onItens(itens.filter((item) => item.id !== id));
+
+  const mover = (indice: number, direcao: -1 | 1) => {
+    const destino = indice + direcao;
+    if (destino < 0 || destino >= itens.length) return;
+    const copia = [...itens];
+    [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+    onItens(copia);
+  };
+
+  const total = itens.reduce((soma, item) => soma + item.file.size, 0);
+
+  const entrada = (
+    <input
+      ref={inputRef}
+      type="file"
+      className="visually-hidden"
+      accept={accept.join(",")}
+      multiple
+      disabled={disabled}
+      onChange={(event) => {
+        receber(event.target.files);
+        event.target.value = ""; // permite reescolher o mesmo arquivo
+      }}
+    />
+  );
+
+  // Os manipuladores de arrasto valem nos dois estados (vazio e preenchido).
+  const arrasto = {
+    onDragEnter: (event: React.DragEvent) => {
+      event.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (event: React.DragEvent) => event.preventDefault(),
+    onDragLeave: (event: React.DragEvent) => {
+      event.preventDefault();
+      dragDepth.current -= 1;
+      if (dragDepth.current <= 0) setDragging(false);
+    },
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      if (!disabled) receber(event.dataTransfer.files);
+    },
+  };
+
+  if (itens.length === 0) {
+    return (
+      <div
+        className={`dropzone${dragging ? " dropzone--active" : ""}`}
+        role="button"
+        tabIndex={0}
+        aria-disabled={disabled}
+        aria-label="Área para arrastar e soltar os documentos"
+        onClick={abrir}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            abrir();
+          }
+        }}
+        {...arrasto}
+      >
+        <div className="dropzone__icon">
+          <FileUploadIcon size={26} />
+        </div>
+        <div className="dropzone__title">
+          {dragging ? "Solte os arquivos aqui" : "Arraste seus arquivos aqui"}
+        </div>
+        <div className="dropzone__subtitle">{labels.join(", ")}</div>
+        <button
+          type="button"
+          className="button"
+          style={{ marginTop: 14 }}
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            abrir();
+          }}
+        >
+          Selecionar arquivos
+        </button>
+        <div className="dropzone__note">
+          vários viram um PDF só · até {formatBytes(targetBytes)} no arquivo final
+        </div>
+        {entrada}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`selecao${dragging ? " selecao--ativa" : ""}`} {...arrasto}>
+      <div className="selecao__topo">
+        <strong>
+          {itens.length} arquivo{itens.length > 1 ? "s" : ""} · {formatBytes(total)}
+        </strong>
+        {itens.length > 1 && (
+          <span className="selecao__ordem">viram um PDF só, nesta ordem</span>
+        )}
+      </div>
+
+      <ul className="arquivos">
+        {itens.map((item, indice) => {
+          const miniatura = miniaturas.get(item.id);
+          return (
+            <li className="arquivo" key={item.id}>
+              <span className="arquivo__ordem">{indice + 1}</span>
+
+              <div className="arquivo__thumb">
+                {miniatura?.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={miniatura.url} alt="" />
+                ) : (
+                  <FileIcon size={22} />
+                )}
+              </div>
+
+              <div className="arquivo__nome" title={item.file.name}>
+                {item.file.name}
+              </div>
+              <div className="arquivo__meta">
+                {formatBytes(item.file.size)}
+                {miniatura?.paginas && miniatura.paginas > 1
+                  ? ` · ${miniatura.paginas} páginas`
+                  : ""}
+              </div>
+
+              <div className="arquivo__acoes">
+                <button
+                  type="button"
+                  className="icon-button icon-button--mini"
+                  disabled={disabled || indice === 0}
+                  onClick={() => mover(indice, -1)}
+                  aria-label={`Mover ${item.file.name} para trás`}
+                  title="Mover para trás"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--mini"
+                  disabled={disabled || indice === itens.length - 1}
+                  onClick={() => mover(indice, 1)}
+                  aria-label={`Mover ${item.file.name} para frente`}
+                  title="Mover para frente"
+                >
+                  →
+                </button>
+                <button
+                  type="button"
+                  className="icon-button icon-button--mini icon-button--perigo"
+                  disabled={disabled}
+                  onClick={() => remover(item.id)}
+                  aria-label={`Remover ${item.file.name}`}
+                  title="Remover"
+                >
+                  <TrashIcon size={14} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+
+        {itens.length < maxFiles && (
+          <li>
+            <button type="button" className="arquivo arquivo--novo" disabled={disabled} onClick={abrir}>
+              <FileUploadIcon size={22} />
+              <span>Adicionar</span>
+            </button>
+          </li>
+        )}
+      </ul>
+
+      {entrada}
+    </div>
+  );
+}
+
+/**
+ * Miniaturas dos itens atuais, geradas uma vez por arquivo.
+ *
+ * Gera só o que ainda não existe e revoga as URLs dos que saíram da lista —
+ * sem isso, cada troca de arquivo deixaria um blob preso na memória da aba.
+ */
+function useMiniaturas(itens: Escolhido[]): Map<string, Miniatura> {
+  const [miniaturas, setMiniaturas] = useState<Map<string, Miniatura>>(new Map());
+  const vivas = useRef<Map<string, Miniatura>>(new Map());
+
+  useEffect(() => {
+    let cancelado = false;
+    const idsAtuais = new Set(itens.map((item) => item.id));
+
+    for (const [id, miniatura] of vivas.current) {
+      if (!idsAtuais.has(id)) {
+        if (miniatura.url) URL.revokeObjectURL(miniatura.url);
+        vivas.current.delete(id);
+      }
+    }
+
+    const pendentes = itens.filter((item) => !vivas.current.has(item.id));
+    if (pendentes.length === 0) {
+      setMiniaturas(new Map(vivas.current));
+      return () => {
+        cancelado = true;
+      };
+    }
+
+    // Cada arquivo corre por conta própria: um PDF pesado não pode segurar a
+    // miniatura das fotos que vieram depois dele. O que limita o paralelismo é
+    // o navegador, e cada item já tem prazo próprio dentro de `gerarMiniatura`.
+    for (const item of pendentes) {
+      void gerarMiniatura(item.file).then((miniatura) => {
+        if (cancelado) {
+          if (miniatura.url) URL.revokeObjectURL(miniatura.url);
+          return;
+        }
+        vivas.current.set(item.id, miniatura);
+        setMiniaturas(new Map(vivas.current));
+      });
+    }
+
+    return () => {
+      cancelado = true;
+    };
+  }, [itens]);
+
+  // Desmontagem: nada de blobs órfãos.
+  useEffect(() => {
+    const registro = vivas.current;
+    return () => {
+      for (const miniatura of registro.values()) {
+        if (miniatura.url) URL.revokeObjectURL(miniatura.url);
+      }
+      registro.clear();
+    };
+  }, []);
+
+  return miniaturas;
+}
