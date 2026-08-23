@@ -58,8 +58,11 @@ export const ENQUADRAMENTO_PADRAO: Enquadramento = { zoom: 1, panX: 0, panY: 0 }
  */
 export const SELO_PADRAO: PosicaoSelo = { escala: 0.82, x: 0.5, y: 0.78 };
 
-export const LIMITE_ZOOM = { min: 1, max: 4 } as const;
-export const LIMITE_ESCALA_SELO = { min: 0.25, max: 1.2 } as const;
+export const LIMITE_ZOOM = { min: 1, max: 6 } as const;
+export const LIMITE_ESCALA_SELO = { min: 0.15, max: 2 } as const;
+
+/** Um ponto em pixels do canvas. */
+export type Ponto = { x: number; y: number };
 
 /* -------------------------------------------------------------------------
    Carregamento
@@ -206,6 +209,76 @@ export function limitarPosicaoSelo(pos: PosicaoSelo): PosicaoSelo {
   };
 }
 
+/* -------------------------------------------------------------------------
+   Gestos
+   -------------------------------------------------------------------------
+
+   Ampliar com dois dedos só parece certo se o que está debaixo deles ficar
+   parado. Escalar em torno do centro do quadro, que seria mais simples,
+   faz a imagem escorregar embaixo do dedo — e a montagem inteira é feita no
+   olho, então essa fuga aparece.
+
+   As duas funções abaixo resolvem a mesma equação para camadas diferentes:
+   dado um fator de escala e um ponto que deve permanecer onde está, qual é o
+   novo posicionamento.
+*/
+
+/**
+ * Amplia o retrato mantendo `ancora` no mesmo lugar da tela.
+ *
+ * O ponto de tela vira coordenada da própria foto (`u`, de 0 a 1), a foto é
+ * reescalada, e o deslocamento é recalculado para que aquele `u` volte a cair
+ * exatamente sobre a âncora.
+ */
+export function escalarFoto(
+  enq: Enquadramento,
+  foto: Camada,
+  lado: number,
+  fator: number,
+  ancora: Ponto,
+): Enquadramento {
+  const zoom = limitar(enq.zoom * fator, LIMITE_ZOOM.min, LIMITE_ZOOM.max);
+  const antes = retanguloFoto(foto, enq, lado);
+  const depois = retanguloFoto(foto, { ...enq, zoom }, lado);
+
+  const u = (ancora.x - antes.x) / antes.largura;
+  const v = (ancora.y - antes.y) / antes.altura;
+
+  return {
+    zoom,
+    panX: (ancora.x - u * depois.largura - (lado - depois.largura) / 2) / lado,
+    panY: (ancora.y - v * depois.altura - (lado - depois.altura) / 2) / lado,
+  };
+}
+
+/**
+ * Amplia o selo mantendo `ancora` no mesmo lugar da tela.
+ *
+ * Aqui é mais direto: o selo é posicionado pelo centro, então basta escalar
+ * junto o vetor que vai da âncora até esse centro.
+ */
+export function escalarSelo(
+  pos: PosicaoSelo,
+  lado: number,
+  fator: number,
+  ancora: Ponto,
+): PosicaoSelo {
+  const escala = limitar(
+    pos.escala * fator,
+    LIMITE_ESCALA_SELO.min,
+    LIMITE_ESCALA_SELO.max,
+  );
+  // O fator efetivo pode ser menor que o pedido, se bateu no limite. Usar o
+  // pedido aqui faria o selo escorregar ao insistir no gesto depois do teto.
+  const efetivo = escala / pos.escala;
+
+  return {
+    escala,
+    x: (ancora.x - (ancora.x - pos.x * lado) * efetivo) / lado,
+    y: (ancora.y - (ancora.y - pos.y * lado) * efetivo) / lado,
+  };
+}
+
 /** O ponto está sobre o selo? (coordenadas em pixels do canvas) */
 export function pontoNoSelo(
   ponto: { x: number; y: number },
@@ -286,4 +359,54 @@ export async function exportarPng(
 export function nomeArquivo(formato: Formato): string {
   const dia = new Date().toISOString().slice(0, 10);
   return `perfil-${formato}-${dia}.png`;
+}
+
+/* -------------------------------------------------------------------------
+   Saída
+   ------------------------------------------------------------------------- */
+
+/** Como a montagem saiu do aparelho. */
+export type Destino = "compartilhado" | "baixado" | "cancelado";
+
+/** Texto que acompanha a imagem na folha de compartilhamento. */
+const LEGENDA = "Eu apoio!";
+
+/**
+ * Entrega a montagem pronta: pela folha de compartilhamento do sistema, ou,
+ * onde ela não existir, como download.
+ *
+ * A folha do sistema é o caminho curto para o WhatsApp — ela lista os
+ * aplicativos instalados e a imagem vai direto para a conversa, sem passar
+ * pela galeria. É o gesto que faz sentido no celular, que é de onde quase todo
+ * mundo vai apoiar.
+ *
+ * Só que compartilhar **arquivo** não existe em todo lugar: no Firefox e no
+ * Chrome de desktop no macOS e no Linux, `canShare` recusa arquivos. Por isso o
+ * download continua aqui como queda — sem ele o botão simplesmente não faria
+ * nada nessas combinações.
+ */
+export async function entregar(montagem: Montagem, formato: Formato): Promise<Destino> {
+  const blob = await exportarPng(montagem);
+  const nome = nomeArquivo(formato);
+  const arquivo = new File([blob], nome, { type: "image/png" });
+
+  if (navigator.canShare?.({ files: [arquivo] })) {
+    try {
+      await navigator.share({ files: [arquivo], text: LEGENDA });
+      return "compartilhado";
+    } catch (erro) {
+      // Fechar a folha sem escolher ninguém não é falha — é uma decisão.
+      if (erro instanceof DOMException && erro.name === "AbortError") return "cancelado";
+      // Qualquer outro tropeço da folha: ainda dá para entregar o arquivo.
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  link.click();
+  // Espera o navegador iniciar o download antes de invalidar a URL.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return "baixado";
 }

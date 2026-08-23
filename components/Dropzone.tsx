@@ -56,6 +56,10 @@ export function Dropzone({
   const dragDepth = useRef(0);
   const miniaturas = useMiniaturas(itens);
 
+  /** Índice do cartão sendo arrastado, e onde ele cairia agora. */
+  const [arrastado, setArrastado] = useState<number | null>(null);
+  const [alvo, setAlvo] = useState<number | null>(null);
+
   const validar = useCallback(
     (candidato: File, jaEscolhidos: Escolhido[]): string | null => {
       const extensao = candidato.name.slice(candidato.name.lastIndexOf(".")).toLowerCase();
@@ -112,6 +116,20 @@ export function Dropzone({
     onItens(copia);
   };
 
+  /** Tira o cartão de `de` e o encaixa em `para`, empurrando o resto. */
+  const reordenar = (de: number, para: number) => {
+    if (de === para) return;
+    const copia = [...itens];
+    const [movido] = copia.splice(de, 1);
+    copia.splice(para, 0, movido);
+    onItens(copia);
+  };
+
+  const encerrarArrasto = () => {
+    setArrastado(null);
+    setAlvo(null);
+  };
+
   const total = itens.reduce((soma, item) => soma + item.file.size, 0);
 
   const entrada = (
@@ -129,20 +147,34 @@ export function Dropzone({
     />
   );
 
+  /**
+   * O arrasto é de arquivos vindos de fora, e não de um cartão da própria lista?
+   *
+   * Sem essa distinção, reordenar acenderia a moldura de "solte os arquivos
+   * aqui" e terminaria num `receber()` sem arquivo nenhum.
+   */
+  const vemDeFora = (event: React.DragEvent) =>
+    Array.from(event.dataTransfer.types).includes("Files");
+
   // Os manipuladores de arrasto valem nos dois estados (vazio e preenchido).
   const arrasto = {
     onDragEnter: (event: React.DragEvent) => {
+      if (!vemDeFora(event)) return;
       event.preventDefault();
       dragDepth.current += 1;
       setDragging(true);
     },
-    onDragOver: (event: React.DragEvent) => event.preventDefault(),
+    onDragOver: (event: React.DragEvent) => {
+      if (vemDeFora(event)) event.preventDefault();
+    },
     onDragLeave: (event: React.DragEvent) => {
+      if (!vemDeFora(event)) return;
       event.preventDefault();
       dragDepth.current -= 1;
       if (dragDepth.current <= 0) setDragging(false);
     },
     onDrop: (event: React.DragEvent) => {
+      if (!vemDeFora(event)) return;
       event.preventDefault();
       dragDepth.current = 0;
       setDragging(false);
@@ -201,15 +233,50 @@ export function Dropzone({
           {itens.length} arquivo{itens.length > 1 ? "s" : ""} · {formatBytes(total)}
         </strong>
         {itens.length > 1 && (
-          <span className="selecao__ordem">viram um PDF só, nesta ordem</span>
+          <span className="selecao__ordem">
+            viram um PDF só, nesta ordem — arraste para reorganizar
+          </span>
         )}
       </div>
 
       <ul className="arquivos">
         {itens.map((item, indice) => {
           const miniatura = miniaturas.get(item.id);
+          const classes = [
+            "arquivo",
+            arrastado === indice ? "arquivo--arrastado" : "",
+            alvo === indice && arrastado !== indice ? "arquivo--alvo" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
           return (
-            <li className="arquivo" key={item.id}>
+            <li
+              className={classes}
+              key={item.id}
+              draggable={!disabled && itens.length > 1}
+              onDragStart={(event) => {
+                setArrastado(indice);
+                event.dataTransfer.effectAllowed = "move";
+                // Firefox só inicia o arrasto se algo for escrito aqui; o
+                // valor em si não é lido, quem carrega o índice é o estado.
+                event.dataTransfer.setData("text/plain", String(indice));
+              }}
+              onDragOver={(event) => {
+                if (arrastado === null) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setAlvo(indice);
+              }}
+              onDrop={(event) => {
+                if (arrastado === null) return;
+                event.preventDefault();
+                event.stopPropagation(); // não deixa virar "soltar arquivo"
+                reordenar(arrastado, indice);
+                encerrarArrasto();
+              }}
+              onDragEnd={encerrarArrasto}
+            >
               <span className="arquivo__ordem">{indice + 1}</span>
 
               <div className="arquivo__thumb">

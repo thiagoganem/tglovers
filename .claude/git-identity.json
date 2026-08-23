@@ -5,6 +5,7 @@
     "email": "282404121+thiagoganem@users.noreply.github.com"
   },
   "push": {
-    "sshHost": "github-thiagoganem"
+    "sshHost": "github-thiagoganem",
+    "remote": "thiagoganem/tglovers"
   }
 }

@@ -113,6 +113,14 @@ export const SendIcon = ({ size = 17 }: IconProps) => (
   </svg>
 );
 
+/** Compartilhar — abre a folha do sistema (WhatsApp, Instagram, e o que houver). */
+export const ShareIcon = ({ size = 17 }: IconProps) => (
+  <svg {...base(size)}>
+    <path d="M12 15V3m0 0L8.5 6.5M12 3l3.5 3.5" />
+    <path d="M20 13v6.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5V13" />
+  </svg>
+);
+
 /** Imagem — a área de upload da aba de figurinhas. */
 export const ImageIcon = ({ size = 26 }: IconProps) => (
   <svg {...base(size)}>

@@ -12,5 +12,8 @@ next-env.d.ts
 # Sistema
 .DS_Store
 
+# Python do gerador de arte da marca
+__pycache__/
+
 # Recursos do pdf.js, copiados do node_modules a cada build
 public/pdfjs/
