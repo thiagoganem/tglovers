@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Dropzone, type Escolhido } from "@/components/Dropzone";
 import { ProcessingCard, type StageId } from "@/components/ProcessingCard";
 import { ResultCard } from "@/components/ResultCard";
+import { ResultListCard } from "@/components/ResultListCard";
 import { AlertIcon } from "@/components/icons";
 import {
   ApiError,
@@ -40,7 +41,10 @@ export default function Documentos() {
   const [configLoaded, setConfigLoaded] = useState<boolean | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [itens, setItens] = useState<Escolhido[]>([]);
-  const [result, setResult] = useState<ProcessResult | null>(null);
+  //: Junção marcada = comportamento de sempre (tudo vira um PDF só). A opção
+  //: só aparece com mais de um arquivo — com um só, juntar não muda nada.
+  const [juntar, setJuntar] = useState(true);
+  const [results, setResults] = useState<ProcessResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [stage, setStage] = useState<StageId>("upload");
@@ -75,7 +79,7 @@ export default function Documentos() {
     peakRef.current = 0;
     setPhase("idle");
     setItens([]);
-    setResult(null);
+    setResults([]);
     setError(null);
     setPercent(0);
     setStage("upload");
@@ -90,7 +94,7 @@ export default function Documentos() {
 
     abortRef.current = controller;
     peakRef.current = 0;
-    setResult(null);
+    setResults([]);
     setError(null);
     setPhase("processing");
     setStage("upload");
@@ -103,10 +107,12 @@ export default function Documentos() {
         {
           // Os antigos controles saíram da tela: o padrão serve para todo mundo
           // e a decisão é do servidor (idioma detectado, OCR só onde falta
-          // texto, compressão só quando o arquivo passa da meta).
+          // texto, compressão só quando o arquivo passa da meta). A junção é a
+          // única exceção — ficou como opção, escolhida antes de processar.
           language: "auto",
           forceOcr: false,
           alwaysCompress: false,
+          mergeFiles: juntar,
           jobId,
           signal: controller.signal,
           onUploadProgress: (fraction) => {
@@ -126,7 +132,7 @@ export default function Documentos() {
         },
       );
       advance(100);
-      setResult(processed);
+      setResults(processed);
       setPhase("done");
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "aborted") {
@@ -141,12 +147,12 @@ export default function Documentos() {
     } finally {
       abortRef.current = null;
     }
-  }, [advance, itens]);
+  }, [advance, itens, juntar]);
 
   const discard = useCallback(() => {
-    if (result) discardResult(result.id);
+    for (const item of results) discardResult(item.id);
     reset();
-  }, [reset, result]);
+  }, [reset, results]);
 
   // Só faz sentido falar de OCR indisponível depois que o servidor respondeu.
   const ocrUnavailable = configLoaded === true && config.languages.length === 0;
@@ -195,12 +201,34 @@ export default function Documentos() {
             maxFiles={config.maxFiles}
             targetBytes={config.targetBytes}
             itens={itens}
+            juntar={juntar}
             onItens={(proximos) => {
               setItens(proximos);
               setError(null);
             }}
             onReject={setError}
           />
+
+          {itens.length > 1 && (
+            <label
+              // A escolha precisa ser consciente e antes do processamento:
+              // decidir depois de subir os bytes seria recomeçar tudo.
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={juntar}
+                onChange={(event) => setJuntar(event.target.checked)}
+              />
+              <span>Juntar os arquivos em um único PDF</span>
+            </label>
+          )}
 
           <button
             type="button"
@@ -229,13 +257,17 @@ export default function Documentos() {
         />
       )}
 
-      {phase === "done" && result && (
+      {phase === "done" && results.length === 1 && (
         <ResultCard
-          result={result}
+          result={results[0]}
           targetBytes={config.targetBytes}
           onReset={reset}
           onDiscard={discard}
         />
+      )}
+
+      {phase === "done" && results.length > 1 && (
+        <ResultListCard results={results} onReset={reset} onDiscardAll={discard} />
       )}
     </div>
   );

@@ -78,6 +78,8 @@ export type ProgressState = {
   errorCode?: string | null;
   /** O resultado, presente só quando `done` e sem erro. */
   result?: ProcessResult | null;
+  /** Um por arquivo, quando o envio veio sem junção. */
+  results?: ProcessResult[] | null;
 };
 
 export class ApiError extends Error {
@@ -120,6 +122,9 @@ export type ProcessOptions = {
   language: string;
   forceOcr: boolean;
   alwaysCompress: boolean;
+  /** `true` (padrão): vários arquivos viram um PDF só. `false`: cada arquivo
+   * vira o próprio PDF, processado de forma independente. */
+  mergeFiles?: boolean;
   jobId: string;
   /** Progresso real do upload, de 0 a 1. */
   onUploadProgress?: (fraction: number) => void;
@@ -155,7 +160,8 @@ function esperar(ms: number, signal?: AbortSignal): Promise<void> {
  * Envia os arquivos e acompanha o processamento até o fim.
  *
  * Mais de um arquivo vira um PDF só, costurado na ordem da lista — é assim que
- * se anexa uma foto ao fim de um contrato.
+ * se anexa uma foto ao fim de um contrato. Com `mergeFiles: false`, cada
+ * arquivo vira o próprio PDF e a resposta traz um resultado por arquivo.
  *
  * São duas etapas, e a separação é o ponto: o envio termina assim que os bytes
  * sobem (o servidor responde 202 com o identificador do trabalho), e o
@@ -166,7 +172,7 @@ function esperar(ms: number, signal?: AbortSignal): Promise<void> {
 export async function processFiles(
   files: File[],
   options: ProcessOptions,
-): Promise<ProcessResult> {
+): Promise<ProcessResult[]> {
   await enviarArquivos(files, options);
   return acompanhar(options);
 }
@@ -175,9 +181,10 @@ export async function processFiles(
  * Sonda o progresso até o trabalho terminar, e devolve o resultado.
  *
  * O resultado chega pelo próprio progresso: como o envio responde antes de
- * processar, não existe outra resposta onde ele caiba.
+ * processar, não existe outra resposta onde ele caiba. Vem sempre em lista —
+ * um item no modo juntado, um por arquivo quando não.
  */
-async function acompanhar(options: ProcessOptions): Promise<ProcessResult> {
+async function acompanhar(options: ProcessOptions): Promise<ProcessResult[]> {
   let falhas = 0;
 
   for (;;) {
@@ -192,7 +199,8 @@ async function acompanhar(options: ProcessOptions): Promise<ProcessResult> {
         throw new ApiError(progress.errorCode ?? "error", progress.error);
       }
       if (progress.done) {
-        if (progress.result) return progress.result;
+        const lista = progress.results ?? (progress.result ? [progress.result] : null);
+        if (lista && lista.length > 0) return lista;
         throw new ApiError("invalid_response", GENERIC_ERROR);
       }
     } catch (caught) {
@@ -215,6 +223,7 @@ function enviarArquivos(files: File[], options: ProcessOptions): Promise<void> {
     form.append("language", options.language);
     form.append("force_ocr", String(options.forceOcr));
     form.append("always_compress", String(options.alwaysCompress));
+    form.append("merge_files", String(options.mergeFiles ?? true));
     form.append("job_id", options.jobId);
 
     const request = new XMLHttpRequest();

@@ -26,6 +26,9 @@ type DropzoneProps = {
   /** Alvo de tamanho da saída, exibido na nota inferior. */
   targetBytes: number;
   itens: Escolhido[];
+  /** `false` quando o envio vai processar cada arquivo separadamente: a
+   * ordem deixa de importar e a reorganização sai de cena. */
+  juntar?: boolean;
   disabled?: boolean;
   onItens: (itens: Escolhido[]) => void;
   onReject: (message: string) => void;
@@ -47,6 +50,7 @@ export function Dropzone({
   maxFiles,
   targetBytes,
   itens,
+  juntar = true,
   disabled = false,
   onItens,
   onReject,
@@ -232,10 +236,13 @@ export function Dropzone({
         <strong>
           {itens.length} arquivo{itens.length > 1 ? "s" : ""} · {formatBytes(total)}
         </strong>
-        {itens.length > 1 && (
+        {itens.length > 1 && juntar && (
           <span className="selecao__ordem">
             viram um PDF só, nesta ordem — arraste para reorganizar
           </span>
+        )}
+        {itens.length > 1 && !juntar && (
+          <span className="selecao__ordem">cada arquivo vira um PDF separado</span>
         )}
       </div>
 
@@ -254,7 +261,7 @@ export function Dropzone({
             <li
               className={classes}
               key={item.id}
-              draggable={!disabled && itens.length > 1}
+              draggable={!disabled && juntar && itens.length > 1}
               onDragStart={(event) => {
                 setArrastado(indice);
                 event.dataTransfer.effectAllowed = "move";
