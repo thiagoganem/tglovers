@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckIcon } from "@/components/icons";
+import { toast } from "sonner";
 
 /**
  * Teclado de símbolos.
@@ -44,22 +44,22 @@ const TECLADO: Fileira[] = [
 ];
 
 export default function Teclado() {
+  // O realce da metade copiada — o aviso em si vem por toast.
   const [copiado, setCopiado] = useState<string | null>(null);
-  const [falhou, setFalhou] = useState(false);
   const avisoRef = useRef<number | undefined>(undefined);
 
-  // O aviso "Copiado!" some sozinho — tempo curto, de quem já viu.
+  // O realce apaga sozinho — tempo curto, de quem já viu.
   useEffect(() => () => window.clearTimeout(avisoRef.current), []);
 
   const copiar = useCallback(async (caractere: string) => {
     try {
       await navigator.clipboard.writeText(caractere);
-      setFalhou(false);
+      toast.success(`Copiado: ${caractere}`);
       setCopiado(caractere);
       window.clearTimeout(avisoRef.current);
       avisoRef.current = window.setTimeout(() => setCopiado(null), 1600);
     } catch {
-      setFalhou(true);
+      toast.error("Não foi possível copiar.");
     }
   }, []);
 
@@ -73,22 +73,6 @@ export default function Teclado() {
       </header>
 
       <section className="card">
-        {/* `role="status"`: leitores de tela anunciam sem roubar o foco. */}
-        <div className="card__header teclado__barra">
-          <span className="teclado__status" role="status" aria-live="polite">
-            {falhou ? (
-              "Não foi possível copiar."
-            ) : copiado !== null ? (
-              <>
-                <CheckIcon size={15} />
-                {`Copiado: ${copiado}`}
-              </>
-            ) : (
-              ""
-            )}
-          </span>
-        </div>
-
         <div className="teclado card__body">
           {TECLADO.map((fileira, indiceFileira) => (
             <div className="teclado__fileira" key={indiceFileira}>

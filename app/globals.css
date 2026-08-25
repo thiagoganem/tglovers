@@ -1013,6 +1013,25 @@ a {
 }
 
 /* ==========================================================================
+   Toasts (sonner) — mesma cara do resto, nas duas cores de tema
+   ========================================================================== */
+[data-sonner-toaster] {
+  --normal-bg: var(--surface);
+  --normal-text: var(--text);
+  --normal-border: var(--border);
+  --border-radius: var(--radius-sm);
+  --font-sans: var(--font-sans);
+}
+
+[data-sonner-toast] {
+  box-shadow: var(--shadow-brand);
+}
+
+[data-sonner-toast] [data-icon] svg {
+  color: var(--brand);
+}
+
+/* ==========================================================================
    Utilidades
    ========================================================================== */
 .visually-hidden {
@@ -2106,27 +2125,9 @@ a {
    Linhas finas em tom de marca e símbolos laranja: nada preenchido, tudo
    contorno — a aparência é de teclado físico técnico, não de botão de
    interface. Cada tecla é um grupo de duas metades de clique iguais: a de
-   cima copia o símbolo com Shift, a de baixo o solto.
+   cima copia o símbolo com Shift, a de baixo o solto. O aviso de copiado
+   vem por toast.
    ========================================================================== */
-.teclado__barra {
-  justify-content: flex-end;
-}
-
-/* O aviso "Copiado:" ocupa sempre o mesmo espaço — a barra não salta. */
-.teclado__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 20px;
-  min-width: 110px;
-  justify-content: flex-end;
-  font-size: 12.5px;
-  color: var(--success);
-}
-
-.teclado__status svg {
-  color: var(--success);
-}
 
 .teclado {
   display: flex;

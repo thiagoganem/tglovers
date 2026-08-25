@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { AlertIcon, CheckIcon, DownloadIcon, InfoIcon, TrashIcon } from "./icons";
 import { downloadUrl, renameResult, type ProcessResult } from "@/lib/api";
 import { formatBytes, formatNumber, formatPercent } from "@/lib/format";
@@ -17,36 +18,43 @@ function ItemResultado({ result }: { result: ProcessResult }) {
   const [nome, setNome] = useState(result.filename);
   const [edicao, setEdicao] = useState<string | null>(null);
 
-  const confirmarNome = useCallback(async () => {
-    if (edicao === null) return;
+  /** Fecha a edição e devolve o nome que ficou valendo. */
+  const confirmarNome = useCallback(async (): Promise<string> => {
+    if (edicao === null) return nome;
     const bruto = edicao;
     setEdicao(null);
 
     const novo = limparNome(bruto);
-    if (!novo || novo === nome) return;
+    if (!novo || novo === nome) return nome;
     try {
       // O servidor guarda o nome: é dele que vem o Content-Disposition do
       // download — atributo `download` de link não vale entre domínios.
       const retorno = await renameResult(result.id, novo);
       setNome(retorno.filename);
+      return retorno.filename;
     } catch {
       /* Sem rede para renomear: fica o nome que já estava. */
+      return nome;
     }
   }, [edicao, nome, result.id]);
 
   const baixar = useCallback(
     async (evento: React.MouseEvent<HTMLAnchorElement>) => {
-      if (edicao === null) return; // sem edição pela metade, o link segue normal
+      if (edicao === null) {
+        toast.success(`Download iniciado: ${nome}`);
+        return; // sem edição pela metade, o link segue normal
+      }
 
       // Clicou em baixar com o nome aberto: o blur até dispara o rename, mas
       // o download sairia antes de o servidor conhecer o nome novo. Então o
       // clique espera — e segue para o mesmo destino depois da troca feita.
       const destino = evento.currentTarget.href;
       evento.preventDefault();
-      await confirmarNome();
+      const final = await confirmarNome();
+      toast.success(`Download iniciado: ${final}`);
       window.location.assign(destino);
     },
-    [confirmarNome, edicao],
+    [confirmarNome, edicao, nome],
   );
 
   return (

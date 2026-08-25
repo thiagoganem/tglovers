@@ -16,7 +16,8 @@
     "next": "15.1.11",
     "pdfjs-dist": "^4.10.38",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@types/node": "22.10.5",

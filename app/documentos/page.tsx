@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Dropzone, type Escolhido } from "@/components/Dropzone";
 import { ProcessingCard, type StageId } from "@/components/ProcessingCard";
 import { ResultCard } from "@/components/ResultCard";
@@ -152,6 +153,11 @@ export default function Documentos() {
 
   const discard = useCallback(() => {
     for (const item of results) discardResult(item.id);
+    toast.success(
+      results.length > 1
+        ? "Documentos descartados do servidor."
+        : "Documento descartado do servidor.",
+    );
     reset();
   }, [reset, results]);
 

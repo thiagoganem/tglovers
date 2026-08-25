@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import { Countdown } from "@/components/Countdown";
 import { NavProvider, NavToggle, Sidebar } from "@/components/Navigation";
 import { THEME_SCRIPT, ThemeToggle } from "@/components/ThemeToggle";
@@ -67,6 +68,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </footer>
           </div>
         </NavProvider>
+
+        {/* Avisos curtos de ações concluídas — cópia, download, descarte.
+            As cores vêm dos tokens em `globals.css`, então o toast acompanha
+            o tema claro/escuro sem configuração extra. */}
+        <Toaster position="top-center" expand={false} closeButton={false} duration={2600} />
       </body>
     </html>
   );
