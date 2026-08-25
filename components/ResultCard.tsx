@@ -50,6 +50,21 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
     }
   }, [edicao, nome, result.id]);
 
+  const baixar = useCallback(
+    async (evento: React.MouseEvent<HTMLAnchorElement>) => {
+      if (edicao === null) return; // sem edição pela metade, o link segue normal
+
+      // Clicou em baixar com o nome aberto: o blur até dispara o rename, mas
+      // o download sairia antes de o servidor conhecer o nome novo. Então o
+      // clique espera — e segue para o mesmo destino depois da troca feita.
+      const destino = evento.currentTarget.href;
+      evento.preventDefault();
+      await confirmarNome();
+      window.location.assign(destino);
+    },
+    [confirmarNome, edicao],
+  );
+
   // No editor a barra lateral sai de cena: ali o que falta é largura.
   useModoFoco(tab === "editor");
 
@@ -176,6 +191,7 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
             className="button button--brand"
             href={downloadUrl(result.id, version)}
             download={nome}
+            onClick={(evento) => void baixar(evento)}
           >
             <DownloadIcon />
             Baixar PDF

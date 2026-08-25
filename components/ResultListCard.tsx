@@ -34,6 +34,21 @@ function ItemResultado({ result }: { result: ProcessResult }) {
     }
   }, [edicao, nome, result.id]);
 
+  const baixar = useCallback(
+    async (evento: React.MouseEvent<HTMLAnchorElement>) => {
+      if (edicao === null) return; // sem edição pela metade, o link segue normal
+
+      // Clicou em baixar com o nome aberto: o blur até dispara o rename, mas
+      // o download sairia antes de o servidor conhecer o nome novo. Então o
+      // clique espera — e segue para o mesmo destino depois da troca feita.
+      const destino = evento.currentTarget.href;
+      evento.preventDefault();
+      await confirmarNome();
+      window.location.assign(destino);
+    },
+    [confirmarNome, edicao],
+  );
+
   return (
     <li
       style={{
@@ -79,7 +94,12 @@ function ItemResultado({ result }: { result: ProcessResult }) {
           </div>
         )}
       </div>
-      <a className="button button--brand" href={downloadUrl(result.id)} download={nome}>
+      <a
+        className="button button--brand"
+        href={downloadUrl(result.id)}
+        download={nome}
+        onClick={(evento) => void baixar(evento)}
+      >
         <DownloadIcon />
         Baixar
       </a>
