@@ -42,7 +42,8 @@ export default function Documentos() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [itens, setItens] = useState<Escolhido[]>([]);
   //: Junção marcada = comportamento de sempre (tudo vira um PDF só). A opção
-  //: só aparece com mais de um arquivo — com um só, juntar não muda nada.
+  //: só aparece com mais de um arquivo — e vem desmarcada: com vários, o que
+  //: se espera é cada arquivo com o seu próprio PDF.
   const [juntar, setJuntar] = useState(true);
   const [results, setResults] = useState<ProcessResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +206,9 @@ export default function Documentos() {
             onItens={(proximos) => {
               setItens(proximos);
               setError(null);
+              // A lista mudou de mão: a decisão de juntar volta ao que se
+              // espera para o novo conjunto — separado, quando há de quê.
+              setJuntar(proximos.length <= 1);
             }}
             onReject={setError}
           />

@@ -2001,6 +2001,38 @@ a {
   word-break: break-word;
 }
 
+/* O nome também se escreve: é o nome do PDF de saída. Discreto em repouso —
+   só a linha pontilhada no hover entrega que dá para mexer — e pronto no
+   foco, como qualquer campo do projeto. */
+.arquivo__nome--editavel {
+  display: block;
+  width: 100%;
+  padding: 3px 5px;
+  margin: -3px -5px; /* o padding não pode engordar o cartão */
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.arquivo__nome--editavel:hover {
+  border-color: var(--border-dashed);
+}
+
+.arquivo__nome--editavel:focus {
+  outline: none;
+  border-color: var(--brand);
+  border-style: solid;
+  background: var(--surface-2);
+}
+
 .arquivo__meta {
   font-size: 11.5px;
   color: var(--faint);

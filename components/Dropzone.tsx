@@ -60,6 +60,9 @@ export function Dropzone({
   const dragDepth = useRef(0);
   const miniaturas = useMiniaturas(itens);
 
+  /** Nome em edição, por item: `{ id, valor }` enquanto o campo está aberto. */
+  const [edicao, setEdicao] = useState<{ id: string; valor: string } | null>(null);
+
   /** Índice do cartão sendo arrastado, e onde ele cairia agora. */
   const [arrastado, setArrastado] = useState<number | null>(null);
   const [alvo, setAlvo] = useState<number | null>(null);
@@ -111,6 +114,31 @@ export function Dropzone({
   const abrir = () => !disabled && inputRef.current?.click();
 
   const remover = (id: string) => onItens(itens.filter((item) => item.id !== id));
+
+  /**
+   * Fecha a edição do nome de um item, se houver algo a fechar.
+   *
+   * O nome do arquivo é o nome do PDF que vai ser baixado — é ele que sobe no
+   * envio e o servidor usa para batizar a saída. A extensão original é
+   * mantida à força: sem ela, a detecção de tipo no servidor se perderia.
+   * Cancelar (Esc ou campo vazio) devolve o nome que já estava.
+   */
+  const confirmarNome = (id: string) => {
+    const item = itens.find((candidato) => candidato.id === id);
+    if (!item || edicao?.id !== id) return;
+
+    const extensao = item.file.name.slice(item.file.name.lastIndexOf(".")).toLowerCase();
+    const limpo = edicao.valor.replace(/[\\/]/g, " ").trim().slice(0, 120);
+    setEdicao(null);
+    if (!limpo || limpo === item.file.name) return;
+
+    const nome = limpo.toLowerCase().endsWith(extensao) ? limpo : `${limpo}${extensao}`;
+    const renomeado = new File([item.file], nome, {
+      type: item.file.type,
+      lastModified: item.file.lastModified,
+    });
+    onItens(itens.map((candidato) => (candidato.id === id ? { ...candidato, file: renomeado } : candidato)));
+  };
 
   const mover = (indice: number, direcao: -1 | 1) => {
     const destino = indice + direcao;
@@ -261,7 +289,9 @@ export function Dropzone({
             <li
               className={classes}
               key={item.id}
-              draggable={!disabled && juntar && itens.length > 1}
+              draggable={
+                !disabled && juntar && itens.length > 1 && edicao?.id !== item.id
+              }
               onDragStart={(event) => {
                 setArrastado(indice);
                 event.dataTransfer.effectAllowed = "move";
@@ -295,9 +325,26 @@ export function Dropzone({
                 )}
               </div>
 
-              <div className="arquivo__nome" title={item.file.name}>
-                {item.file.name}
-              </div>
+              <input
+                className="arquivo__nome arquivo__nome--editavel"
+                value={edicao?.id === item.id ? edicao.valor : item.file.name}
+                title="Nome do PDF que será baixado — clique para alterar"
+                aria-label={`Nome do arquivo ${indice + 1}`}
+                spellCheck={false}
+                // O campo não pode virar alvo de arrasto nem começar a
+                // reorganização: o gesto aqui é escrever, não mover.
+                onDragStart={(evento) => evento.preventDefault()}
+                onFocus={() => setEdicao({ id: item.id, valor: item.file.name })}
+                onChange={(evento) => setEdicao({ id: item.id, valor: evento.target.value })}
+                onBlur={() => confirmarNome(item.id)}
+                onKeyDown={(evento) => {
+                  if (evento.key === "Enter") evento.currentTarget.blur();
+                  if (evento.key === "Escape") {
+                    setEdicao(null);
+                    evento.currentTarget.blur();
+                  }
+                }}
+              />
               <div className="arquivo__meta">
                 {formatBytes(item.file.size)}
                 {miniatura?.paginas && miniatura.paginas > 1
