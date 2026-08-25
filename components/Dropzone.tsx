@@ -326,7 +326,7 @@ export function Dropzone({
               </div>
 
               <input
-                className="arquivo__nome arquivo__nome--editavel"
+                className="arquivo__nome nome-editavel"
                 value={edicao?.id === item.id ? edicao.valor : item.file.name}
                 title="Nome do PDF que será baixado — clique para alterar"
                 aria-label={`Nome do arquivo ${indice + 1}`}

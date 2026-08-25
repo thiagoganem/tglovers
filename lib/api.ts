@@ -256,6 +256,26 @@ function enviarArquivos(files: File[], options: ProcessOptions): Promise<void> {
 }
 
 /**
+ * Troca o nome do PDF guardado no servidor.
+ *
+ * É no servidor, e não só no `download` do link, porque com o backend em
+ * outro domínio o navegador ignora o atributo e usa o nome do
+ * `Content-Disposition` — quem precisa mudar de lado é ele.
+ */
+export async function renameResult(
+  id: string,
+  filename: string,
+): Promise<{ filename: string }> {
+  const response = await fetch(api(`/api/rename/${id}`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename }),
+  });
+  if (!response.ok) throw parseError(await response.text(), response.status);
+  return response.json();
+}
+
+/**
  * Sincroniza o PDF guardado no servidor com o texto editado.
  *
  * Manda o texto inteiro, e não uma lista de substituições: é o servidor que

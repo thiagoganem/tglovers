@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { AlertIcon, CheckIcon, CopyIcon, DownloadIcon, InfoIcon, TrashIcon } from "./icons";
 import { TextEditor } from "./TextEditor";
 import { useModoFoco } from "./Navigation";
-import { downloadUrl, previewUrl, refineResult, type ProcessResult } from "@/lib/api";
+import { downloadUrl, previewUrl, refineResult, renameResult, type ProcessResult } from "@/lib/api";
 import { formatBytes, formatNumber, formatPercent } from "@/lib/format";
 
 type ResultCardProps = {
@@ -14,6 +14,13 @@ type ResultCardProps = {
   onDiscard: () => void;
 };
 
+/** Deixa o nome apto a virar arquivo: sem caminho, com o .pdf no fim. */
+function limparNome(bruto: string): string {
+  const limpo = bruto.replace(/[\\/]/g, " ").trim().slice(0, 120);
+  if (!limpo) return "";
+  return limpo.toLowerCase().endsWith(".pdf") ? limpo : `${limpo}.pdf`;
+}
+
 export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCardProps) {
   const [tab, setTab] = useState<"preview" | "editor">("preview");
   const [copied, setCopied] = useState(false);
@@ -21,6 +28,27 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
   //: que o navegador busque o arquivo novo em vez de servir o que tem em cache.
   const [version, setVersion] = useState(result.version ?? 1);
   const [finalSize, setFinalSize] = useState(result.finalSize);
+  //: O nome é o que o download leva — editável no próprio banner. `edicao`
+  //: segura o texto enquanto o campo está aberto; vazio (null) é só exibição.
+  const [nome, setNome] = useState(result.filename);
+  const [edicao, setEdicao] = useState<string | null>(null);
+
+  const confirmarNome = useCallback(async () => {
+    if (edicao === null) return;
+    const bruto = edicao;
+    setEdicao(null);
+
+    const novo = limparNome(bruto);
+    if (!novo || novo === nome) return;
+    try {
+      // O servidor guarda o nome: é dele que vem o Content-Disposition do
+      // download — atributo `download` de link não vale entre domínios.
+      const retorno = await renameResult(result.id, novo);
+      setNome(retorno.filename);
+    } catch {
+      /* Sem rede para renomear: fica o nome que já estava. */
+    }
+  }, [edicao, nome, result.id]);
 
   // No editor a barra lateral sai de cena: ali o que falta é largura.
   useModoFoco(tab === "editor");
@@ -59,11 +87,29 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="result__headline">Documento pronto</div>
-            <div className="result__sub" title={result.filename}>
-              {result.filename}
-              {result.ocrApplied
-                ? ` · OCR aplicado em ${result.ocrPages} página${result.ocrPages > 1 ? "s" : ""}`
-                : " · o documento já continha texto"}
+            <div className="result__sub" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <input
+                className="nome-editavel"
+                value={edicao !== null ? edicao : nome}
+                title="Nome do PDF que será baixado — clique para alterar"
+                aria-label="Nome do arquivo"
+                spellCheck={false}
+                onFocus={() => setEdicao(nome)}
+                onChange={(evento) => setEdicao(evento.target.value)}
+                onBlur={() => void confirmarNome()}
+                onKeyDown={(evento) => {
+                  if (evento.key === "Enter") evento.currentTarget.blur();
+                  if (evento.key === "Escape") {
+                    setEdicao(null);
+                    evento.currentTarget.blur();
+                  }
+                }}
+              />
+              <span style={{ flex: "none" }}>
+                {result.ocrApplied
+                  ? `· OCR aplicado em ${result.ocrPages} página${result.ocrPages > 1 ? "s" : ""}`
+                  : "· o documento já continha texto"}
+              </span>
             </div>
           </div>
         </div>
@@ -129,7 +175,7 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
           <a
             className="button button--brand"
             href={downloadUrl(result.id, version)}
-            download={result.filename}
+            download={nome}
           >
             <DownloadIcon />
             Baixar PDF
@@ -185,12 +231,12 @@ export function ResultCard({ result, targetBytes, onReset, onDiscard }: ResultCa
             key={version}
             className="viewer"
             src={previewUrl(result.id, version)}
-            title={`Pré-visualização de ${result.filename}`}
+            title={`Pré-visualização de ${nome}`}
           />
         ) : result.text ? (
           <TextEditor
             initialText={result.text}
-            filename={result.filename}
+            filename={nome}
             onAplicarNoPdf={aplicarNoPdf}
           />
         ) : (

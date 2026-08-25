@@ -1,8 +1,91 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { AlertIcon, CheckIcon, DownloadIcon, InfoIcon, TrashIcon } from "./icons";
-import { downloadUrl, type ProcessResult } from "@/lib/api";
+import { downloadUrl, renameResult, type ProcessResult } from "@/lib/api";
 import { formatBytes, formatNumber, formatPercent } from "@/lib/format";
+
+/** Deixa o nome apto a virar arquivo: sem caminho, com o .pdf no fim. */
+function limparNome(bruto: string): string {
+  const limpo = bruto.replace(/[\\/]/g, " ").trim().slice(0, 120);
+  if (!limpo) return "";
+  return limpo.toLowerCase().endsWith(".pdf") ? limpo : `${limpo}.pdf`;
+}
+
+/** Um arquivo da lista: nome editável e o próprio download. */
+function ItemResultado({ result }: { result: ProcessResult }) {
+  const [nome, setNome] = useState(result.filename);
+  const [edicao, setEdicao] = useState<string | null>(null);
+
+  const confirmarNome = useCallback(async () => {
+    if (edicao === null) return;
+    const bruto = edicao;
+    setEdicao(null);
+
+    const novo = limparNome(bruto);
+    if (!novo || novo === nome) return;
+    try {
+      // O servidor guarda o nome: é dele que vem o Content-Disposition do
+      // download — atributo `download` de link não vale entre domínios.
+      const retorno = await renameResult(result.id, novo);
+      setNome(retorno.filename);
+    } catch {
+      /* Sem rede para renomear: fica o nome que já estava. */
+    }
+  }, [edicao, nome, result.id]);
+
+  return (
+    <li
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <input
+          className="nome-editavel"
+          style={{ fontWeight: 600 }}
+          value={edicao !== null ? edicao : nome}
+          title="Nome do PDF que será baixado — clique para alterar"
+          aria-label={`Nome do arquivo ${result.id}`}
+          spellCheck={false}
+          onFocus={() => setEdicao(nome)}
+          onChange={(evento) => setEdicao(evento.target.value)}
+          onBlur={() => void confirmarNome()}
+          onKeyDown={(evento) => {
+            if (evento.key === "Enter") evento.currentTarget.blur();
+            if (evento.key === "Escape") {
+              setEdicao(null);
+              evento.currentTarget.blur();
+            }
+          }}
+        />
+        <div className="result__sub">
+          {formatBytes(result.originalSize)} → {formatBytes(result.finalSize)}
+          {" · "}
+          {formatPercent(result.reductionPercent)}
+          {" · "}
+          {formatNumber(result.pages)} página{result.pages > 1 ? "s" : ""}
+          {result.ocrApplied
+            ? ` · OCR em ${result.ocrPages} página${result.ocrPages > 1 ? "s" : ""}`
+            : " · já continha texto"}
+        </div>
+        {result.warnings.length > 0 && (
+          <div className="alert alert--warning" style={{ marginTop: 6 }}>
+            <AlertIcon size={17} />
+            <span>{result.warnings[0].message}</span>
+          </div>
+        )}
+      </div>
+      <a className="button button--brand" href={downloadUrl(result.id)} download={nome}>
+        <DownloadIcon />
+        Baixar
+      </a>
+    </li>
+  );
+}
 
 type ResultListCardProps = {
   results: ProcessResult[];
@@ -31,53 +114,9 @@ export function ResultListCard({ results, onReset, onDiscardAll }: ResultListCar
       </div>
 
       <ul style={{ display: "flex", flexDirection: "column", gap: 10, padding: "4px 20px" }}>
-        {results.map((result) => {
-          return (
-            <li
-              key={result.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div
-                  className="result__sub"
-                  style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  title={result.filename}
-                >
-                  {result.filename}
-                </div>
-                <div className="result__sub">
-                  {formatBytes(result.originalSize)} → {formatBytes(result.finalSize)}
-                  {" · "}
-                  {formatPercent(result.reductionPercent)}
-                  {" · "}
-                  {formatNumber(result.pages)} página{result.pages > 1 ? "s" : ""}
-                  {result.ocrApplied
-                    ? ` · OCR em ${result.ocrPages} página${result.ocrPages > 1 ? "s" : ""}`
-                    : " · já continha texto"}
-                </div>
-                {result.warnings.length > 0 && (
-                  <div className="alert alert--warning" style={{ marginTop: 6 }}>
-                    <AlertIcon size={17} />
-                    <span>{result.warnings[0].message}</span>
-                  </div>
-                )}
-              </div>
-              <a
-                className="button button--brand"
-                href={downloadUrl(result.id)}
-                download={result.filename}
-              >
-                <DownloadIcon />
-                Baixar
-              </a>
-            </li>
-          );
-        })}
+        {results.map((result) => (
+          <ItemResultado key={result.id} result={result} />
+        ))}
       </ul>
 
       <div className="actions">

@@ -2001,10 +2001,11 @@ a {
   word-break: break-word;
 }
 
-/* O nome também se escreve: é o nome do PDF de saída. Discreto em repouso —
-   só a linha pontilhada no hover entrega que dá para mexer — e pronto no
-   foco, como qualquer campo do projeto. */
-.arquivo__nome--editavel {
+/* O nome de arquivo também se escreve — na lista do envio e no resultado, é
+   ele que nomeia o PDF baixado. Discreto em repouso — só a linha pontilhada
+   no hover entrega que dá para mexer — e pronto no foco, como qualquer campo
+   do projeto. */
+.nome-editavel {
   display: block;
   width: 100%;
   padding: 3px 5px;
@@ -2022,11 +2023,11 @@ a {
     background 0.15s ease;
 }
 
-.arquivo__nome--editavel:hover {
+.nome-editavel:hover {
   border-color: var(--border-dashed);
 }
 
-.arquivo__nome--editavel:focus {
+.nome-editavel:focus {
   outline: none;
   border-color: var(--brand);
   border-style: solid;
