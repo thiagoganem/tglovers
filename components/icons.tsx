@@ -169,6 +169,14 @@ export const CloseIcon = ({ size = 20 }: IconProps) => (
 );
 
 /** Retrato dentro de um círculo — o módulo de foto de perfil. */
+/** Contorno de teclado — glifo do módulo Teclado. */
+export const KeyboardIcon = ({ size = 18 }: IconProps) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6 13.5h.01M9.5 13.5h.01M13 13.5h.01M16.5 13.5h.01M8 16h8" />
+  </svg>
+);
+
 export const PortraitIcon = ({ size = 18 }: IconProps) => (
   <svg {...base(size)}>
     <circle cx="12" cy="12" r="9" />

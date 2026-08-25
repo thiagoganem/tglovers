@@ -2066,3 +2066,128 @@ a {
 .correcoes__estado {
   color: var(--muted);
 }
+
+/* ==========================================================================
+   Teclado — contorno simplificado de símbolos (Windows × Mac)
+   --------------------------------------------------------------------------
+   Linhas finas em tom de marca e símbolos laranja: nada preenchido, tudo
+   contorno — a aparência é de teclado físico técnico, não de botão de
+   interface. As teclas fantasmas completam a silhueta sem virar alvo.
+   ========================================================================== */
+.teclado__barra {
+  justify-content: space-between;
+}
+
+/* O aviso "Copiado:" ocupa sempre o mesmo espaço — a barra não salta. */
+.teclado__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  min-width: 110px;
+  justify-content: flex-end;
+  font-size: 12.5px;
+  color: var(--success);
+}
+
+.teclado__status svg {
+  color: var(--success);
+}
+
+.teclado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: clamp(16px, 4vw, 28px);
+  /* A moldura é o teclado em si: uma linha fina, cantos discretos, fundo do
+     próprio ambiente — nada de sombra ou relevo. */
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.teclado__fileira {
+  display: flex;
+  gap: 8px;
+}
+
+.tecla {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 1px solid var(--brand-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.tecla:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* Acende por um instante ao copiar: é o "clique" da tecla. */
+.tecla--copiada {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.tecla__base {
+  font-size: 17px;
+  font-weight: 620;
+  line-height: 1;
+}
+
+.tecla__shift {
+  font-size: 11px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--brand) 72%, var(--muted));
+  border-radius: 4px;
+  padding: 2px 3px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.tecla__shift:hover {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+/* Silhueta: ocupa o lugar de teclas que não interessam aqui (Shift, Return). */
+.tecla--fantasma {
+  border-style: dashed;
+  border-color: var(--border-dashed);
+  cursor: default;
+}
+
+.teclado__nota {
+  margin: 0;
+  padding: 12px 18px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+@media (max-width: 620px) {
+  .tecla {
+    min-width: 44px;
+    min-height: 46px;
+  }
+
+  .tecla__base {
+    font-size: 15px;
+  }
+}
