@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertIcon, CheckIcon, DownloadIcon, InfoIcon, TrashIcon } from "./icons";
 import { downloadUrl, renameResult, type ProcessResult } from "@/lib/api";
@@ -17,44 +17,50 @@ function limparNome(bruto: string): string {
 function ItemResultado({ result }: { result: ProcessResult }) {
   const [nome, setNome] = useState(result.filename);
   const [edicao, setEdicao] = useState<string | null>(null);
+  //: O rename em andamento, quando existe. O blur do campo dispara a troca
+  //: antes do clique em Baixar chegar — quem baixa precisa esperar essa
+  //: promessa, não começar outra nem sair antes dela.
+  const renomeEmCurso = useRef<Promise<string> | null>(null);
 
-  /** Fecha a edição e devolve o nome que ficou valendo. */
+  /** Fecha a edição e devolve o nome que ficou valendo (ou que ainda vai valer). */
   const confirmarNome = useCallback(async (): Promise<string> => {
-    if (edicao === null) return nome;
+    if (edicao === null) {
+      return renomeEmCurso.current ? await renomeEmCurso.current : nome;
+    }
     const bruto = edicao;
     setEdicao(null);
 
     const novo = limparNome(bruto);
     if (!novo || novo === nome) return nome;
+    // O servidor guarda o nome: é dele que vem o Content-Disposition do
+    // download — atributo `download` de link não vale entre domínios.
+    const promessa = renameResult(result.id, novo)
+      .then((retorno) => {
+        setNome(retorno.filename);
+        return retorno.filename;
+      })
+      .catch(() => nome); // sem rede: fica o nome que estava
+    renomeEmCurso.current = promessa;
     try {
-      // O servidor guarda o nome: é dele que vem o Content-Disposition do
-      // download — atributo `download` de link não vale entre domínios.
-      const retorno = await renameResult(result.id, novo);
-      setNome(retorno.filename);
-      return retorno.filename;
-    } catch {
-      /* Sem rede para renomear: fica o nome que já estava. */
-      return nome;
+      return await promessa;
+    } finally {
+      renomeEmCurso.current = null;
     }
   }, [edicao, nome, result.id]);
 
   const baixar = useCallback(
     async (evento: React.MouseEvent<HTMLAnchorElement>) => {
-      if (edicao === null) {
-        toast.success(`Download iniciado: ${nome}`);
-        return; // sem edição pela metade, o link segue normal
-      }
-
-      // Clicou em baixar com o nome aberto: o blur até dispara o rename, mas
-      // o download sairia antes de o servidor conhecer o nome novo. Então o
-      // clique espera — e segue para o mesmo destino depois da troca feita.
+      // Baixar sempre passa por aqui: com o campo ainda aberto, o blur do
+      // clique dispara o rename um instante antes — e o download padrão
+      // sairia com o nome de antes, vencendo a corrida. Segurar o clique e
+      // esperar o nome definitivo no servidor é o único caminho sem corrida.
       const destino = evento.currentTarget.href;
       evento.preventDefault();
       const final = await confirmarNome();
       toast.success(`Download iniciado: ${final}`);
       window.location.assign(destino);
     },
-    [confirmarNome, edicao, nome],
+    [confirmarNome],
   );
 
   return (
