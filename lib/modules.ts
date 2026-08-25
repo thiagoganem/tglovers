@@ -56,7 +56,7 @@ export const MODULES: DashboardModule[] = [
     id: "teclado",
     href: "/teclado",
     label: "Teclado",
-    description: "Símbolos que trocam de lugar entre Windows e Mac, prontos para copiar.",
+    description: "Símbolos e pontuações difíceis de achar, copiados com um clique.",
     icon: KeyboardIcon,
   },
 ];
