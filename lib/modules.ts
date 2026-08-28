@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { FileIcon, KeyboardIcon, PortraitIcon, ScissorsIcon } from "@/components/icons";
+import { FileIcon, KeyboardIcon, ScissorsIcon } from "@/components/icons";
 
 /**
  * Registro das abas do dashboard.
@@ -44,13 +44,6 @@ export const MODULES: DashboardModule[] = [
     description: "Imagem em figurinha 512×512 e envio direto no WhatsApp.",
     icon: ScissorsIcon,
     oculto: true,
-  },
-  {
-    id: "perfil",
-    href: "/perfil",
-    label: "Foto de perfil",
-    description: "Sua foto com o selo da campanha, pronta para WhatsApp e Instagram.",
-    icon: PortraitIcon,
   },
   {
     id: "teclado",

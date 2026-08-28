@@ -113,14 +113,6 @@ export const SendIcon = ({ size = 17 }: IconProps) => (
   </svg>
 );
 
-/** Compartilhar — abre a folha do sistema (WhatsApp, Instagram, e o que houver). */
-export const ShareIcon = ({ size = 17 }: IconProps) => (
-  <svg {...base(size)}>
-    <path d="M12 15V3m0 0L8.5 6.5M12 3l3.5 3.5" />
-    <path d="M20 13v6.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5V13" />
-  </svg>
-);
-
 /** Imagem — a área de upload da aba de figurinhas. */
 export const ImageIcon = ({ size = 26 }: IconProps) => (
   <svg {...base(size)}>
@@ -168,36 +160,10 @@ export const CloseIcon = ({ size = 20 }: IconProps) => (
   </svg>
 );
 
-/** Retrato dentro de um círculo — o módulo de foto de perfil. */
 /** Contorno de teclado — glifo do módulo Teclado. */
 export const KeyboardIcon = ({ size = 18 }: IconProps) => (
   <svg {...base(size)}>
     <rect x="2.5" y="6" width="19" height="12" rx="2" />
     <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6 13.5h.01M9.5 13.5h.01M13 13.5h.01M16.5 13.5h.01M8 16h8" />
-  </svg>
-);
-
-export const PortraitIcon = ({ size = 18 }: IconProps) => (
-  <svg {...base(size)}>
-    <circle cx="12" cy="12" r="9" />
-    <circle cx="12" cy="10" r="3" />
-    <path d="M6.2 18.4a6.2 6.2 0 0 1 11.6 0" />
-  </svg>
-);
-
-/** Selo/roseta — a arte que entra por cima da foto. */
-export const BadgeIcon = ({ size = 26 }: IconProps) => (
-  <svg {...base(size)}>
-    <path d="M12 3 14.3 7.7l5.2.8-3.8 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1L4.5 8.5l5.2-.8z" />
-    <path d="M8.5 15.5 7 21l5-2 5 2-1.5-5.5" />
-  </svg>
-);
-
-/** Alvo — recentrar o enquadramento. */
-export const TargetIcon = ({ size = 15 }: IconProps) => (
-  <svg {...base(size)}>
-    <circle cx="12" cy="12" r="8" />
-    <circle cx="12" cy="12" r="2.5" />
-    <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22" />
   </svg>
 );

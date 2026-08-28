@@ -8,7 +8,7 @@ import { SITE } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: `${SITE.name} — documentos, figurinhas e foto de perfil`,
+  title: `${SITE.name} — documentos e figurinhas`,
   description: SITE.tagline,
   robots: { index: false, follow: false },
 };
